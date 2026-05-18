@@ -1,0 +1,30 @@
+# 가상환경
+venv/
+
+# YOLO 모델 (용량 큼)
+*.pt
+*.onnx
+
+# 데이터셋 (용량 큼)
+data/train/
+data/valid/
+data/test/
+data/output/
+data/*.mp4
+data/*.zip
+
+# 학습 결과
+runs/
+
+# DB
+*.db
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.env
+
+# 시스템
+.DS_Store
+*:Zone.Identifier
