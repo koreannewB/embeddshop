@@ -176,7 +176,9 @@ manager = ConnectionManager()
 async def yolo_detect_loop():
     global latest_frame
     if model is None:
-        print("⚠️  YOLO 모델 없음")
+        print("🎮 시뮬레이터 모드")
+        from simulator import simulate_objects
+        await simulate_objects(manager, process_tracking, db_get_cart)
         return
 
     VIDEO_PATH = "data/freetimetest.mp4"
@@ -189,7 +191,7 @@ async def yolo_detect_loop():
         ret, frame = cap.read()
         if not ret:
             cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
-            await asyncio.sleep(0.1)
+            await asyncio.sleep(0.12)
             continue
 
         frame_h, frame_w = frame.shape[:2]
@@ -197,9 +199,9 @@ async def yolo_detect_loop():
         # 구역선
         cv2.line(frame, (0, frame_h//3),   (frame_w, frame_h//3),   (255,255,255), 1)
         cv2.line(frame, (0, frame_h*2//3), (frame_w, frame_h*2//3), (255,255,255), 1)
-        cv2.putText(frame, "ZONE A", (10, 22),               cv2.FONT_HERSHEY_SIMPLEX, 0.55, (147,139,250), 2)
-        cv2.putText(frame, "ZONE B", (10, frame_h//3+22),   cv2.FONT_HERSHEY_SIMPLEX, 0.55, (56,189,248),  2)
-        cv2.putText(frame, "ZONE C", (10, frame_h*2//3+22), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (52,211,153),  2)
+        cv2.putText(frame, "ZONE [A]", (10, 22),               cv2.FONT_HERSHEY_SIMPLEX, 0.55, (147,139,250), 2)
+        cv2.putText(frame, "ZONE [B]", (10, frame_h//3+22),   cv2.FONT_HERSHEY_SIMPLEX, 0.55, (56,189,248),  2)
+        cv2.putText(frame, "ZONE [C]", (10, frame_h*2//3+22), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (52,211,153),  2)
 
         results = model.track(frame, persist=True, verbose=False)
         detections = []
@@ -241,7 +243,7 @@ async def yolo_detect_loop():
             await manager.broadcast({"type": "detections", "detections": detections,
                                      "frame_w": frame_w, "frame_h": frame_h})
 
-        await asyncio.sleep(0.03)
+        await asyncio.sleep(0.12)
 
     cap.release()
 
