@@ -24,6 +24,7 @@ PRODUCT_DB = {
     "apple":     {"name": "사과",     "price": 2000, "emoji": "🍎"},
     "banana":    {"name": "바나나",   "price": 1300, "emoji": "🍌"},
     "free_time": {"name": "자유시간", "price": 1500, "emoji": "🍫"},
+    "sweet_and_sour": {"name": "새콤달콤", "price": 1200, "emoji": "🍬"},
 }
 
 def get_product(label: str):
@@ -179,7 +180,7 @@ async def yolo_detect_loop():
         print("⚠️  YOLO 모델 없음")
         return
 
-    VIDEO_PATH = "data/freetimetest.mp4"
+    VIDEO_PATH = "data/test2.mp4"
     cap = cv2.VideoCapture(VIDEO_PATH if Path(VIDEO_PATH).exists() else 0)
     print(f"🎬 영상 로드: {VIDEO_PATH}" if Path(VIDEO_PATH).exists() else "📷 카메라 시작")
 

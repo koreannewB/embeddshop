@@ -1,5 +1,5 @@
 train: /home/a32237277/myproject/embeddshop/data/output/images
 val: /home/a32237277/myproject/embeddshop/data/valid/images
 test: /home/a32237277/myproject/embeddshop/data/test/images
-nc: 1
-names: ['free_time']
+nc: 2
+names: ['Sweet_and_sour', 'free_time']
