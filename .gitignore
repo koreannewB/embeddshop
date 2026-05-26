@@ -4,7 +4,8 @@ venv/
 # YOLO 모델 (용량 큼)
 *.pt
 *.onnx
-
+*.mp4
+pt/*.pt/
 # 데이터셋 (용량 큼)
 data/train/
 data/valid/
