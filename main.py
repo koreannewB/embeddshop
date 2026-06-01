@@ -16,15 +16,53 @@ Base.metadata.create_all(bind=engine)
 
 # ── 상품 정보 ──
 PRODUCT_DB = {
-    "item_a":    {"name": "상품A",    "price": 1000, "emoji": "📦"},
-    "candy":     {"name": "사탕",     "price": 500,  "emoji": "🍬"},
-    "chocolate": {"name": "초콜릿",   "price": 1200, "emoji": "🍫"},
-    "bottle":    {"name": "음료수",   "price": 1500, "emoji": "🍶"},
-    "cup":       {"name": "컵",       "price": 800,  "emoji": "☕"},
-    "apple":     {"name": "사과",     "price": 2000, "emoji": "🍎"},
-    "banana":    {"name": "바나나",   "price": 1300, "emoji": "🍌"},
-    "free_time": {"name": "자유시간", "price": 1500, "emoji": "🍫"},
-    "sweet_and_sour": {"name": "새콤달콤", "price": 1200, "emoji": "🍬"},
+    "Sweet_and_sour": {
+        "name": "새콤달콤",
+        "price": 1200,
+        "emoji": "🍬"
+    },
+
+    "digest": {
+        "name": "다이제",
+        "price": 2000,
+        "emoji": "🍪"
+    },
+
+    "free_time": {
+        "name": "자유시간",
+        "price": 1500,
+        "emoji": "🍫"
+    },
+
+    "miz": {
+        "name": "미즈",
+        "price": 1500,
+        "emoji": "🥤"
+    },
+
+    "pringles": {
+        "name": "프링글스",
+        "price": 3000,
+        "emoji": "🥔"
+    },
+
+    "brownie_box": {
+        "name": "브라우니",
+        "price": 2500,
+        "emoji": "🍫"
+    },
+
+    "twix": {
+        "name": "트윅스",
+        "price": 1500,
+        "emoji": "🍫"
+    },
+
+    "gatorade_bottle": {
+        "name": "게토레이",
+        "price": 2000,
+        "emoji": "🥤"
+    }
 }
 
 def get_product(label: str):
@@ -180,17 +218,28 @@ async def yolo_detect_loop():
         print("⚠️  YOLO 모델 없음")
         return
 
-    VIDEO_PATH = "data/test2.mp4"
-    cap = cv2.VideoCapture(VIDEO_PATH if Path(VIDEO_PATH).exists() else 0)
-    print(f"🎬 영상 로드: {VIDEO_PATH}" if Path(VIDEO_PATH).exists() else "📷 카메라 시작")
+    # VIDEO_PATH = "data/test2.mp4"
+    # cap = cv2.VideoCapture(VIDEO_PATH if Path(VIDEO_PATH).exists() else 0)
+    IP_CAMERA_URL = "http://192.168.45.18:8080/video"
+    cap = cv2.VideoCapture(IP_CAMERA_URL)
+    print("📱 IP 카메라 연결")
 
+    #print(f"🎬 영상 로드: {VIDEO_PATH}" if Path(VIDEO_PATH).exists() else "📷 카메라 시작")
+    print("📱 IP 카메라 연결 완료")
     ZONE_COLORS = {"A": (147,139,250), "B": (56,189,248), "C": (52,211,153)}
 
     while True:
-        ret, frame = cap.read()
+    ret, frame = cap.read()
+
         if not ret:
-            cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
-            await asyncio.sleep(0.1)
+            print("⚠️ IP 카메라 연결 끊김 - 재연결 시도")
+
+            cap.release()
+
+            await asyncio.sleep(1)
+
+            cap = cv2.VideoCapture(IP_CAMERA_URL)
+
             continue
 
         frame_h, frame_w = frame.shape[:2]

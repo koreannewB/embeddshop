@@ -1,0 +1,3 @@
+frame = cv2.rotate(frame, cv2.ROTATE_90_CLOCKWISE)
+
+cv2.imwrite("test.jpg", frame)
