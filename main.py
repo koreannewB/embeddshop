@@ -212,36 +212,29 @@ class ConnectionManager:
 manager = ConnectionManager()
 
 # ── YOLO 감지 루프 ──
+# ── YOLO 감지 루프 ──
 async def yolo_detect_loop():
     global latest_frame
     if model is None:
         print("⚠️  YOLO 모델 없음")
         return
-
-    # VIDEO_PATH = "data/test2.mp4"
-    # cap = cv2.VideoCapture(VIDEO_PATH if Path(VIDEO_PATH).exists() else 0)
-    IP_CAMERA_URL = "http://192.168.45.18:8080/video"
+ 
+    IP_CAMERA_URL = "http://192.168.45.59:8080/video"
     cap = cv2.VideoCapture(IP_CAMERA_URL)
-    print("📱 IP 카메라 연결")
-
-    #print(f"🎬 영상 로드: {VIDEO_PATH}" if Path(VIDEO_PATH).exists() else "📷 카메라 시작")
     print("📱 IP 카메라 연결 완료")
+ 
     ZONE_COLORS = {"A": (147,139,250), "B": (56,189,248), "C": (52,211,153)}
-
+ 
     while True:
-    ret, frame = cap.read()
-
+        ret, frame = cap.read()
+ 
         if not ret:
             print("⚠️ IP 카메라 연결 끊김 - 재연결 시도")
-
             cap.release()
-
             await asyncio.sleep(1)
-
             cap = cv2.VideoCapture(IP_CAMERA_URL)
-
             continue
-
+ 
         frame_h, frame_w = frame.shape[:2]
 
         # 구역선
@@ -263,10 +256,10 @@ async def yolo_detect_loop():
                 zone  = get_zone((y1+y2)/2, frame_h)
                 color = ZONE_COLORS.get(zone, (255,255,255))
 
-                cv2.rectangle(frame, (int(x1),int(y1)), (int(x2),int(y2)), color, 2)
-                cv2.putText(frame, f"{label} {int(conf*100)}% [{zone}]",
-                            (int(x1), max(int(y1)-8,12)),
-                            cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
+#                 cv2.rectangle(frame, (int(x1),int(y1)), (int(x2),int(y2)), color, 2)
+#                 cv2.putText(frame, f"{label} {int(conf*100)}% [{zone}]",
+#                             (int(x1), max(int(y1)-8,12)),
+#                             cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
 
                 detections.append({"track_id": track_id, "label": label,
                                    "conf": round(conf,2), "zone": zone,
