@@ -73,22 +73,26 @@ model = None
 
 def load_model():
     global model
-    model_path = Path("best.pt")
+    model_path = Path("firsttest.pt")
     if model_path.exists():
         from ultralytics import YOLO
         model = YOLO(str(model_path))
         print("✅ YOLO 모델 로드 완료")
     else:
-        print("⚠️  best.pt 없음")
+        print("⚠️  firsttest.pt 없음")
 
 # ── 스트리밍용 프레임 ──
 latest_frame = None
 frame_lock   = threading.Lock()
 
+stop_event = threading.Event()
+
 def generate_frames():
-    while True:
+    import time
+    while not stop_event.is_set():
         with frame_lock:
             if latest_frame is None:
+                time.sleep(0.05)
                 continue
             ret, buffer = cv2.imencode('.jpg', latest_frame, [cv2.IMWRITE_JPEG_QUALITY, 80])
             if not ret:
@@ -96,6 +100,7 @@ def generate_frames():
             frame_bytes = buffer.tobytes()
         yield (b'--frame\r\n'
                b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
+        time.sleep(1/60)
 
 # ── 구역 판별 ──
 def get_zone(center_y: float, frame_h: int) -> str:
@@ -199,15 +204,17 @@ class ConnectionManager:
         self.active.append(ws)
 
     def disconnect(self, ws: WebSocket):
-        self.active.remove(ws)
+        if ws in self.active:
+            self.active.remove(ws)
 
     async def broadcast(self, data: dict):
         msg = json.dumps(data, ensure_ascii=False)
         for ws in self.active.copy():
             try:
                 await ws.send_text(msg)
-            except:
-                self.active.remove(ws)
+            except Exception:
+                if ws in self.active:
+                    self.active.remove(ws)
 
 manager = ConnectionManager()
 
@@ -216,16 +223,20 @@ manager = ConnectionManager()
 async def yolo_detect_loop():
     global latest_frame
     if model is None:
-        print("⚠️  YOLO 모델 없음")
+        print("🎮 시뮬레이터 모드")
+        from simulator import simulate_objects
+        await simulate_objects(manager, process_tracking, db_get_cart)
         return
- 
-    IP_CAMERA_URL = "http://192.168.45.59:8080/video"
-    cap = cv2.VideoCapture(IP_CAMERA_URL)
-    print("📱 IP 카메라 연결 완료")
- 
+
+    VIDEO_PATH = "sasshoptest4.mp4"
+    cap = cv2.VideoCapture(VIDEO_PATH if Path(VIDEO_PATH).exists() else 0)
+    print(f"🎬 영상 로드: {VIDEO_PATH}" if Path(VIDEO_PATH).exists() else "📷 카메라 시작")
+    
     ZONE_COLORS = {"A": (147,139,250), "B": (56,189,248), "C": (52,211,153)}
- 
+
+    import time
     while True:
+        t_start = time.perf_counter()
         ret, frame = cap.read()
  
         if not ret:
@@ -237,14 +248,20 @@ async def yolo_detect_loop():
  
         frame_h, frame_w = frame.shape[:2]
 
-        # 구역선
-        cv2.line(frame, (0, frame_h//3),   (frame_w, frame_h//3),   (255,255,255), 1)
-        cv2.line(frame, (0, frame_h*2//3), (frame_w, frame_h*2//3), (255,255,255), 1)
-        cv2.putText(frame, "ZONE A", (10, 22),               cv2.FONT_HERSHEY_SIMPLEX, 0.55, (147,139,250), 2)
-        cv2.putText(frame, "ZONE B", (10, frame_h//3+22),   cv2.FONT_HERSHEY_SIMPLEX, 0.55, (56,189,248),  2)
-        cv2.putText(frame, "ZONE C", (10, frame_h*2//3+22), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (52,211,153),  2)
+        # zone 선/텍스트는 HTML CSS 오버레이로 처리
 
-        results = model.track(frame, persist=True, verbose=False)
+        results = model.track(
+            frame,
+
+            persist=True,
+
+            verbose=False,
+
+            conf=0.5,
+            iou=0.3,
+
+            tracker="bytetrack.yaml"
+        )
         detections = []
 
         if results[0].boxes.id is not None:
@@ -256,10 +273,10 @@ async def yolo_detect_loop():
                 zone  = get_zone((y1+y2)/2, frame_h)
                 color = ZONE_COLORS.get(zone, (255,255,255))
 
-#                 cv2.rectangle(frame, (int(x1),int(y1)), (int(x2),int(y2)), color, 2)
-#                 cv2.putText(frame, f"{label} {int(conf*100)}% [{zone}]",
-#                             (int(x1), max(int(y1)-8,12)),
-#                             cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
+                #cv2.rectangle(frame, (int(x1),int(y1)), (int(x2),int(y2)), color, 2)
+                #cv2.putText(frame, f"{label} {int(conf*100)}% [{zone}]",
+                #            (int(x1), max(int(y1)-8,12)),
+                #            cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
 
                 detections.append({"track_id": track_id, "label": label,
                                    "conf": round(conf,2), "zone": zone,
@@ -284,7 +301,8 @@ async def yolo_detect_loop():
             await manager.broadcast({"type": "detections", "detections": detections,
                                      "frame_w": frame_w, "frame_h": frame_h})
 
-        await asyncio.sleep(0.03)
+        elapsed = time.perf_counter() - t_start
+        await asyncio.sleep(max(0, 1/60 - elapsed))
 
     cap.release()
 
@@ -294,6 +312,7 @@ async def lifespan(app: FastAPI):
     load_model()
     asyncio.create_task(yolo_detect_loop())
     yield
+    stop_event.set()
 
 app = FastAPI(lifespan=lifespan)
 app.mount("/static", StaticFiles(directory="static"), name="static")
