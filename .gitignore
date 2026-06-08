@@ -1,43 +1,109 @@
-# Python
-venv/
-__pycache__/
-*.pyc
-*.pyo
-
-# Database
-*.db
-
-# YOLO model
+# =========================
+# Model files
+# =========================
 *.pt
+*.onnx
+*.engine
 
+# =========================
 # Training results
+# =========================
 runs/
 0602output/
+0608output/
 shop_detect_v2/
 
-# Dataset
+# =========================
+# Datasets
+# =========================
 data/
 data0602/
+data0608/
+data0608_2/
+data0608_2_aug/
+data0608_augment/
+
 brownie/
 twix/
 gatorade_bottle/
 shop/
 
+# =========================
 # Frames
+# =========================
 frames/
+fall_frames/
+fall_frames_300/
 
+# =========================
 # Videos
+# =========================
 *.mp4
 *.avi
 *.mov
 *.mkv
 
-# Images
-test.jpg
+fall_sas/
+fall_ssas/
 
+# =========================
+# Images
+# =========================
+test.jpg
+*.png
+*.jpg
+*.jpeg
+
+# (주의)
+# static 폴더 이미지를 서비스에 쓰면 삭제
+# 학습용 이미지면 아래 활성화
+# static/uploads/
+
+# =========================
+# Python
+# =========================
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# =========================
+# Virtual Environment
+# =========================
+venv/
+.env
+.venv/
+
+# =========================
+# Database
+# =========================
+*.db
+*.sqlite
+*.sqlite3
+
+# =========================
 # VSCode
+# =========================
 .vscode/
 
-# Linux
+# =========================
+# Linux / Mac
+# =========================
 *.swp
+*.swo
 .DS_Store
+
+# =========================
+# Logs
+# =========================
+*.log
+
+# =========================
+# Windows
+# =========================
+Thumbs.db
+
+# =========================
+# Zone Identifier
+# =========================
+*:Zone.Identifier

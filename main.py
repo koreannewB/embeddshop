@@ -73,7 +73,7 @@ model = None
 
 def load_model():
     global model
-    model_path = Path("best.pt")
+    model_path = Path("fall0608.pt")
     if model_path.exists():
         from ultralytics import YOLO
         model = YOLO(str(model_path))
