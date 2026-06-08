@@ -86,22 +86,40 @@ latest_frame = None
 frame_lock   = threading.Lock()
 
 def generate_frames():
-    while True:
-        with frame_lock:
-            if latest_frame is None:
-                continue
-            ret, buffer = cv2.imencode('.jpg', latest_frame, [cv2.IMWRITE_JPEG_QUALITY, 80])
-            if not ret:
-                continue
-            frame_bytes = buffer.tobytes()
-        yield (b'--frame\r\n'
-               b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
+    import time
 
+    print("video_feed 시작")
+
+    while True:
+        try:
+            with frame_lock:
+                if latest_frame is None:
+                    time.sleep(0.05)
+                    continue
+
+                frame = latest_frame.copy()
+
+            ret, buffer = cv2.imencode(".jpg", frame)
+
+            if not ret:
+                print("jpg 인코딩 실패")
+                continue
+
+            yield (
+                b'--frame\r\n'
+                b'Content-Type: image/jpeg\r\n\r\n'
+                + buffer.tobytes()
+                + b'\r\n'
+            )
+
+        except Exception as e:
+            print("🔥 video_feed 오류:", e)
+            break
 # ── 구역 판별 ──
 def get_zone(center_y: float, frame_h: int) -> str:
-    if center_y < frame_h / 3:       return "A"
-    elif center_y < frame_h * 2 / 3: return "B"
-    return "C"
+    if center_y < frame_h / 2:
+        return "A"
+    return "B"
 
 # ── 트래킹 상태 ──
 track_history: dict = {}
@@ -168,24 +186,32 @@ def db_checkout():
 def process_tracking(track_id, zone: str, label: str) -> dict | None:
     if track_id not in track_history:
         track_history[track_id] = []
+
     hist = track_history[track_id]
+
     if not hist or hist[-1] != zone:
         hist.append(zone)
 
-    ai = next((i for i, z in enumerate(hist) if z == "A"), -1)
-    bi = next((i for i in range(len(hist)-1, -1, -1) if hist[i] == "B"), -1)
-    ci = next((i for i in range(len(hist)-1, -1, -1) if hist[i] == "C"), -1)
-    if ai != -1 and bi > ai and ci > bi:
-        track_history[track_id] = []
-        return {"action": "add", "product": db_add_item(label)}
+    # 최근 기록만 유지
+    if len(hist) > 5:
+        hist.pop(0)
 
-    ci2 = next((i for i, z in enumerate(hist) if z == "C"), -1)
-    bi2 = next((i for i in range(len(hist)-1, -1, -1) if hist[i] == "B"), -1)
-    ai2 = next((i for i in range(len(hist)-1, -1, -1) if hist[i] == "A"), -1)
-    if ci2 != -1 and bi2 > ci2 and ai2 > bi2:
-        db_remove_item(label)
+    # A -> B = 상품 추가
+    if len(hist) >= 2 and hist[-2:] == ["A", "B"]:
         track_history[track_id] = []
-        return {"action": "remove", "product": get_product(label)}
+        return {
+            "action": "add",
+            "product": db_add_item(label)
+        }
+
+    # B -> A = 상품 제거
+    if len(hist) >= 2 and hist[-2:] == ["B", "A"]:
+        track_history[track_id] = []
+        db_remove_item(label)
+        return {
+            "action": "remove",
+            "product": get_product(label)
+        }
 
     return None
 
@@ -219,7 +245,7 @@ async def yolo_detect_loop():
         print("⚠️  YOLO 모델 없음")
         return
  
-    IP_CAMERA_URL = "http://192.168.45.59:8080/video"
+    IP_CAMERA_URL = "http://192.168.45.103:8080/video"
     cap = cv2.VideoCapture(IP_CAMERA_URL)
     print("📱 IP 카메라 연결 완료")
  
@@ -227,7 +253,7 @@ async def yolo_detect_loop():
  
     while True:
         ret, frame = cap.read()
- 
+        frame = cv2.resize(frame, (1280, 720))
         if not ret:
             print("⚠️ IP 카메라 연결 끊김 - 재연결 시도")
             cap.release()
@@ -238,13 +264,21 @@ async def yolo_detect_loop():
         frame_h, frame_w = frame.shape[:2]
 
         # 구역선
-        cv2.line(frame, (0, frame_h//3),   (frame_w, frame_h//3),   (255,255,255), 1)
-        cv2.line(frame, (0, frame_h*2//3), (frame_w, frame_h*2//3), (255,255,255), 1)
-        cv2.putText(frame, "ZONE A", (10, 22),               cv2.FONT_HERSHEY_SIMPLEX, 0.55, (147,139,250), 2)
-        cv2.putText(frame, "ZONE B", (10, frame_h//3+22),   cv2.FONT_HERSHEY_SIMPLEX, 0.55, (56,189,248),  2)
-        cv2.putText(frame, "ZONE C", (10, frame_h*2//3+22), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (52,211,153),  2)
+        cv2.line(frame, (0, frame_h//2), (frame_w, frame_h//2), (255,255,255), 2)
+        cv2.putText(frame, "ZONE A", (10, 30),
+            cv2.FONT_HERSHEY_SIMPLEX, 0.7, (147,139,250), 2)
 
-        results = model.track(frame, persist=True, verbose=False)
+        cv2.putText(frame, "ZONE B", (10, frame_h//2 + 30),
+            cv2.FONT_HERSHEY_SIMPLEX, 0.7, (56,189,248), 2)
+       
+        results = model.track(
+            frame,
+            imgsz=640,
+            persist=True,
+            verbose=False,
+            tracker="bytetrack.yaml"
+        )
+       
         detections = []
 
         if results[0].boxes.id is not None:
@@ -301,9 +335,10 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 # ── 라우터 ──
 @app.get("/video_feed")
 def video_feed():
-    return StreamingResponse(generate_frames(),
-                             media_type="multipart/x-mixed-replace;boundary=frame")
-
+    return StreamingResponse(
+        generate_frames(),
+        media_type="multipart/x-mixed-replace; boundary=frame"
+    )
 @app.websocket("/ws")
 async def websocket_endpoint(ws: WebSocket):
     await manager.connect(ws)
